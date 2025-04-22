@@ -145,3 +145,9 @@ Das höchste Bit im ersten Byte (`Bit 7 = 1`) bewirkt, dass der Servo nach der B
 ![Schaltplan](PCB/Schaltplan.png)
 
 Der Schaltplan zeigt die Pinbelegung und die Verbindung zu den Komponenten. Weitere Details zur Funktionalität findest du in der oben genannten Beschreibung.
+
+### 🛠️ PCB Layout
+
+Hier ist das PCB-Layout für das ATtiny412 I²C Servo Control Board:
+
+![PCB Layout](PCB/pcb.png)
