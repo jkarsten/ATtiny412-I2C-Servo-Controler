@@ -5,8 +5,8 @@ Ein kompakter und konfigurierbarer I²C-Servo-Controller basierend auf einem ATt
 A minimal I²C servo controller based on the ATtiny412. Supports configurable position, speed, and pulse range. Parameters are stored in EEPROM. Optional automatic servo detach.
 
 ---
-
-## ✨ Features
+## Arduino Code
+### ✨ Features
 
 - Steuerung eines Servos per I²C
 - Konfigurierbare:
@@ -139,3 +139,9 @@ Das höchste Bit im ersten Byte (`Bit 7 = 1`) bewirkt, dass der Servo nach der B
 
 - [megaTinyCore](https://github.com/SpenceKonde/megaTinyCore)
 
+## PCB
+### 🔌 Schaltplan
+
+![Schaltplan](PCB/Schaltplan.png)
+
+Der Schaltplan zeigt die Pinbelegung und die Verbindung zu den Komponenten. Weitere Details zur Funktionalität findest du in der oben genannten Beschreibung.
