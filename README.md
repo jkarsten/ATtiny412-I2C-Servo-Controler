@@ -33,6 +33,8 @@ A minimal I²C servo controller based on the ATtiny412. Supports configurable po
   Setze eine Validierung ein, die sicherstellt, dass alle Werte (z. B. Positions-, Geschwindigkeits- und Pulsweitenwerte) innerhalb eines gültigen Bereichs liegen. Eine `constrain()`-Funktion könnte hier helfen.
 - [ ] **Anfang ≤ Ende erzwingen**  
   Stelle sicher, dass der Startwert der Position immer kleiner oder gleich dem Endwert ist, um inkonsistente Positionen zu vermeiden.
+- [ ] **LED Blinken an / aus**
+  Um einen Arduino mit der Adresse zu finden die LED Blinken lassen.
 
 ---
 
