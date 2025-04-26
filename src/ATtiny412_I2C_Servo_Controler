@@ -85,11 +85,11 @@ volatile bool I2C_Empfang = false;          // Flag, dass neue Daten vorhanden s
 void setup() {
   VPORTA.DIR |= PIN3_bm;  // LED PIN als Ausgang
 
-  ServoStartPosition = readEEPROMByte((uint8_t*)0x00, SERVO_ANFANG_MIN, SERVO_ENDE_MAX, SERVO_ANFANG_MIN);  // ServoStartPosition aus dem EEPROM lesen
-  ServoAnfang = readEEPROMByte((uint8_t*)0x01, SERVO_ANFANG_MIN, SERVO_ANFANG_MAX, SERVO_ANFANG_MIN);       // ServoAnfang aus dem EEPROM lesen
-  ServoEnde = readEEPROMByte((uint8_t*)0x02, SERVO_ENDE_MIN, SERVO_ENDE_MAX, SERVO_ENDE_MAX);               // ServoEnde aus dem EEPROM lesen
-  ServoSpeed = readEEPROMByte((uint8_t*)0x03, SERVO_SPEED_MIN, SERVO_SPEED_MAX, SERVO_SPEED_MIN);           // ServoSpeed aus dem EEPROM lesen
-  I2CAdresse = readEEPROMByte((uint8_t*)0x04, I2C_ADRESSE_MIN, I2C_ADRESSE_MAX, I2C_ADRESSE_MIN);           // I2CAdresse aus dem EEPROM lesen
+  ServoStartPosition = readEEPROMByte((uint8_t*)0x00, SERVO_ANFANG_MIN, SERVO_ENDE_MAX, ServoStartPosition);  // ServoStartPosition aus dem EEPROM lesen
+  ServoAnfang = readEEPROMByte((uint8_t*)0x01, SERVO_ANFANG_MIN, SERVO_ANFANG_MAX, SERVO_ANFANG_MIN);         // ServoAnfang aus dem EEPROM lesen
+  ServoEnde = readEEPROMByte((uint8_t*)0x02, SERVO_ENDE_MIN, SERVO_ENDE_MAX, SERVO_ENDE_MAX);                 // ServoEnde aus dem EEPROM lesen
+  ServoSpeed = readEEPROMByte((uint8_t*)0x03, SERVO_SPEED_MIN, SERVO_SPEED_MAX, SERVO_SPEED_MIN);             // ServoSpeed aus dem EEPROM lesen
+  I2CAdresse = readEEPROMByte((uint8_t*)0x04, I2C_ADRESSE_MIN, I2C_ADRESSE_MAX, I2CAdresse);                  // I2CAdresse aus dem EEPROM lesen
 
   ServoPulseMin = readEEPROMWord((uint16_t*)0x05, SERVO_PULSE_MIN, SERVO_PULSE_MAX, SERVO_PULSE_MIN);  // ServoPulseMin aus dem EEPROM lesen
   ServoPulseMax = readEEPROMWord((uint16_t*)0x07, SERVO_PULSE_MIN, SERVO_PULSE_MAX, SERVO_PULSE_MAX);  // ServoPulseMax aus dem EEPROM lesen
@@ -99,6 +99,7 @@ void setup() {
   Servo1.attach(SERVO_PIN, ServoPulseMin, ServoPulseMax);  // Servo an Pin Servo_PIN anschließen (wähle den entsprechenden Pin)
   ServoAttached = true;
   Servo1.write(ServoStartPosition);  // ServoAnfang
+  delay(100);
 }
 
 // =====================================
@@ -222,6 +223,7 @@ void loop() {
     if (ServoSpeed == 0) {  // Wenn ServoSpeed 0 ist, springe sofort zur Zielposition
       ServoPosition = ServoZielPos;
       Servo1.write(ServoPosition);  // Sofortige Position setzen
+      delay(100);                   // Detach Verzögern um 100ms damit der Servo die Position verarbeiten kann
     } else {                        // Bei ServoSpeed > 0, gehe schrittweise in Richtung Zielposition
       if ((millis() - ServoLetzteBewegung) >= ServoSpeed || ServoLetzteBewegung > millis()) {
         if (ServoZielPos > ServoPosition) {
