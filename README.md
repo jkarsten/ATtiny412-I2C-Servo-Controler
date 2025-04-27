@@ -106,6 +106,8 @@ Das höchste Bit im ersten Byte (`Bit 7 = 1`) bewirkt, dass der Servo nach der B
 | Gehe zum Anfang      | `0001`      | Setzt auf gespeicherten Anfang         |
 | Gehe zum Ende        | `0010`      | Setzt auf gespeichertes Ende           |
 | Setze Speed          | `0100`      | Geschwindigkeit (0–100 ms Schritte)    |
+| Blinken              | `0111`      | LED Blinken zum Auffinden eines Moduls |
+|                      |             |                                        |
 | Puls Min speichern   | `1001`      | Pulsweite MIN (in µs, 2 Byte)          |
 | Puls Max speichern   | `1010`      | Pulsweite MAX (in µs, 2 Byte)          |
 | Anfang speichern     | `1100`      | Neue Startposition (0–180)             |
