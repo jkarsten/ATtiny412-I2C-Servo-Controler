@@ -27,6 +27,8 @@ A minimal I²C servo controller based on the ATtiny412. Supports configurable po
   Speichere die Pulsweiten für Min und Max im EEPROM, um sie nach einem Neustart wiederherzustellen.
 - [x] **Detach-Funktion nach Bewegung**  
   Die Funktionalität, den Servo nach der Bewegung vom System zu trennen (Detach), sollte die Leistung optimieren und den Stromverbrauch senken.
+- [x] **Befehl zum Blinken**
+  Wen aktiviert blinkt die LED. Dies erleichtert das auffinden eines Moduls.
 - [ ] **Werte per I²C auslesbar machen**  
   Ermögliche das Auslesen der gespeicherten Werte (z. B. Start-, Endposition, Pulsweiten, etc.) über I²C für eine benutzerfreundliche Kommunikation.
 - [ ] **Input-Werte validieren (constrain)**  
