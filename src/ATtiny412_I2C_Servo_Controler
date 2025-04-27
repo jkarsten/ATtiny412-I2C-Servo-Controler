@@ -19,13 +19,15 @@
 // =======================================
 // ✅ Hinzufügen von attach(pin, min, max) MIN und MAX mit Speicherung im EEPROM -> Umgesetzt
 //
+// ✅ Detach des Servos nach erreichen des Ziels durch Flag gesteuert
+//
+// ✅ Command zum Blinken (Auffinden eines Moduls) hinzufügen
+//
 // 🔍 Constrain in Switch Case Block benutzen
 //
 // 🔍 Rückmeldung der Werte per I²C
 //
 // 🔍 Prüfen das ServoAnfang <= ServoEnde bleibt
-//
-// ✅ Detach des Servos nach erreichen des Ziels durch Flag gesteuert
 //
 // ❌ Umstellung auf writeMicroseconds -> Vorteil gering
 //      -  Auflösung durch µs-Steuerung	Theoretisch da, praktisch begrenzt nutzbar. Bei 1 ms um 4 µs steigerung ist der Vorteil fast aufgehoben.
@@ -60,8 +62,8 @@ Servo Servo1;  // create servo object to control a servo
 uint8_t ServoAnfang = SERVO_ANFANG_MIN;
 uint8_t ServoEnde = SERVO_ENDE_MAX;
 uint8_t ServoSpeed = SERVO_SPEED_MIN;
-int ServoPulseMin = SERVO_PULSE_MIN;
-int ServoPulseMax = SERVO_PULSE_MAX;
+uint16_t ServoPulseMin = SERVO_PULSE_MIN;
+uint16_t ServoPulseMax = SERVO_PULSE_MAX;
 
 uint8_t ServoStartPosition = 90;
 uint8_t ServoPosition = ServoStartPosition;
@@ -75,8 +77,9 @@ bool ServoAttached = false;       // Zustand des Servos - Verbunden = true / Get
 #include <avr/eeprom.h>
 #define Toggle_Led (VPORTA.OUT ^= PIN3_bm)  // LED Wechsel um Empfang von Daten zu visualisieren
 volatile uint8_t Befehl = 0;                // Zu verarbeitender Befehl
-volatile int Wert = 0;                      // Wert für den Befehl (z. B. Position, Geschwindigkeit, I²C Adresse)
+volatile uint16_t Wert = 0;                 // Wert für den Befehl (z. B. Position, Geschwindigkeit, I²C Adresse)
 volatile bool I2C_Empfang = false;          // Flag, dass neue Daten vorhanden sind
+bool blinkeLED = false;                     // Flag für LED Blinken
 
 
 // =====================================
@@ -84,6 +87,9 @@ volatile bool I2C_Empfang = false;          // Flag, dass neue Daten vorhanden s
 // =====================================
 void setup() {
   VPORTA.DIR |= PIN3_bm;  // LED PIN als Ausgang
+    // VPORTA.OUT &= ~PIN3_bm;  // LED aus
+    //VPORTA.OUT |= PIN3_bm;  // LED an
+    //Toggle_Led;
 
   ServoStartPosition = readEEPROMByte((uint8_t*)0x00, SERVO_ANFANG_MIN, SERVO_ENDE_MAX, ServoStartPosition);  // ServoStartPosition aus dem EEPROM lesen
   ServoAnfang = readEEPROMByte((uint8_t*)0x01, SERVO_ANFANG_MIN, SERVO_ANFANG_MAX, SERVO_ANFANG_MIN);         // ServoAnfang aus dem EEPROM lesen
@@ -112,6 +118,7 @@ void loop() {
   // Gehe zum Anfang          XXXX 0001
   // Gehe zum Ende            XXXX 0010
   // Setze Speed              XXXX 0100
+  // Blink LED                XXXX 0111
 
   // Speicher Servo Puls Min  XXXX 1001
   // Speicher Servo Puls Max  XXXX 1010
@@ -120,10 +127,12 @@ void loop() {
   // Speicher Geschwindigkeit XXXX 1110
   // Neue I²C Adresse         XXXX 1111
 
-  // Flag - Detach
-  // Detach Servo nach Bewegung  1XXX BBBB
+  // Flags
+  // Detach Servo nach Bewegung   1XXX BBBB
+
 
   if (I2C_Empfang) {                                      // Verarbeitung des Befehls
+                                                          //    blinkeLED = false;                                    // LED Blinken ausschalten
     detachNachBewegung = false;                           // Reset des Flags für jeden neuen Befehl
     detachNachBewegung = (i2cRead[0] & 0b10000000) != 0;  // Prüfe auf gesetztes Detach-Bit (Bit 7)
     Befehl = Befehl & 0b00001111;                         // Befehle extrahieren - Untere 4 Bits
@@ -139,7 +148,7 @@ void loop() {
         ServoZielPos = ServoAnfang;
         I2C_Empfang = false;
         break;
-      case 0b00000010:  //Gehe zum Ende
+      case 0b00000010:  // Gehe zum Ende
         ServoZielPos = ServoEnde;
         I2C_Empfang = false;
         break;
@@ -147,6 +156,10 @@ void loop() {
         if (Wert >= SERVO_SPEED_MIN && Wert <= SERVO_SPEED_MAX) {
           ServoSpeed = Wert;
         }
+        I2C_Empfang = false;
+        break;
+      case 0b00000111:  // LED blinken an/aus
+        blinkeLED = (Wert == 1);
         I2C_Empfang = false;
         break;
       case 0b00001001:  // Speicher Servo Puls Min
@@ -238,7 +251,6 @@ void loop() {
   }
 
   if (ServoZielPos == ServoPosition) {  // Wen Bewegung erreicht prüfen ob Servo getrennt oder Verbunden werden muss
-
     if (!ServoAttached && !detachNachBewegung) {  // Wen Servo deaktiviert ist aber detachNachBewegung false ist den Servo erneut Verbinden
       Servo1.attach(SERVO_PIN, ServoPulseMin, ServoPulseMax);
       ServoAttached = true;
@@ -251,10 +263,19 @@ void loop() {
     }
   }
 
-  if (ServoAttached) {
-    VPORTA.OUT |= PIN3_bm;  // LED an
+
+  static unsigned long letzteLEDMillis = 0;
+  if (blinkeLED) {
+    if (millis() - letzteLEDMillis >= 300) {  // Blinkintervall 300ms
+      Toggle_Led;
+      letzteLEDMillis = millis();
+    }
   } else {
-    VPORTA.OUT &= ~PIN3_bm;  // LED aus
+    if (ServoAttached) {
+      VPORTA.OUT |= PIN3_bm;  // LED an
+    } else {
+      VPORTA.OUT &= ~PIN3_bm;  // LED aus
+    }
   }
 }
 
@@ -263,6 +284,7 @@ void loop() {
 // =====================================
 void receiveEvent(int Anzahl) {
   I2C_Empfang = false;
+  Wert = 0;
   //detachNachBewegung = false;  // Reset des Flags für jeden neuen Befehl
 
   // Erstes Byte  = XXXX BBBB (BBBB = Befehle | XXXX ist für Optionale Flags)
@@ -288,10 +310,6 @@ void receiveEvent(int Anzahl) {
       while (Wire.available()) Wire.read();
     }
   }
-
-  // if (I2C_Empfang) {
-  //   Toggle_Led;
-  // }
 }
 
 // =====================================
