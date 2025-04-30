@@ -17,6 +17,7 @@ A minimal I²C servo controller based on the ATtiny412. Supports configurable po
 - EEPROM-Speicherung der Einstellungen
 - Detach-Option nach Bewegung des Servos
 - LED als Statusanzeige
+- Angepasste Servo Library um Speicher zu sparren (Nur attach / detach / write mit einem Servo möglich)
 - Kompakte Umsetzung für ATtiny412
 
 ---
@@ -29,7 +30,7 @@ A minimal I²C servo controller based on the ATtiny412. Supports configurable po
   Die Funktionalität, den Servo nach der Bewegung vom System zu trennen (Detach), sollte die Leistung optimieren und den Stromverbrauch senken.
 - [x] **Befehl zum Blinken**  
   Wen aktiviert blinkt die LED. Dies erleichtert das auffinden eines Moduls.
-- [ ] **Werte per I²C auslesbar machen**  
+- [x] **Werte per I²C auslesbar machen**  
   Ermögliche das Auslesen der gespeicherten Werte (z. B. Start-, Endposition, Pulsweiten, etc.) über I²C für eine benutzerfreundliche Kommunikation.
 - [ ] **Input-Werte validieren (constrain)**  
   Setze eine Validierung ein, die sicherstellt, dass alle Werte (z. B. Positions-, Geschwindigkeits- und Pulsweitenwerte) innerhalb eines gültigen Bereichs liegen. Eine `constrain()`-Funktion könnte hier helfen.
