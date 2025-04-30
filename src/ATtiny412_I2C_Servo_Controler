@@ -23,17 +23,12 @@
 //
 // ✅ Command zum Blinken (Auffinden eines Moduls) hinzufügen
 //
-// 🔍 Constrain in Switch Case Block benutzen
+// ✅ Rückmeldung der Werte per I²C
 //
-// 🔍 Rückmeldung der Werte per I²C
+// 🔍 Constrain in Switch Case Block benutzen
 //
 // 🔍 Prüfen das ServoAnfang <= ServoEnde bleibt
 //
-// ❌ Umstellung auf writeMicroseconds -> Vorteil gering
-//      -  Auflösung durch µs-Steuerung	Theoretisch da, praktisch begrenzt nutzbar. Bei 1 ms um 4 µs steigerung ist der Vorteil fast aufgehoben.
-//      -  Zeitsteuerung in Mikrosekunden	Mit micros() machbar
-//      -  Servogenauigkeit - Limitiert, feine Schritte kaum spürbar (Änderungen nur bei 5–10 µs)
-//      -  Komplexität vs Nutzen	Höherer Aufwand, aber geringer Mehrwert. Größere Variablentypen. Speicher fast am Limit.
 
 // I²C
 // ---------------------------------------
@@ -47,7 +42,8 @@ uint8_t i2cRead[I2C_BUFFER_SIZE];
 
 // Servo
 // ---------------------------------------
-#include <Servo_megaTinyCore.h>
+// #include <Servo_megaTinyCore.h>
+#include "Servo412.h"
 #define SERVO_ANFANG_MIN 0    // Minimum für Servo Anfang
 #define SERVO_ANFANG_MAX 180  // Maximum für Servo Anfang
 #define SERVO_ENDE_MIN 0      // Minimum für Servo Ende
@@ -102,6 +98,8 @@ void setup() {
 
   Wire.begin(I2CAdresse);                                  // Beginne I2C als Slave mit Adresse 8
   Wire.onReceive(receiveEvent);                            // Callback-Funktion bei Empfang von Daten
+  Wire.onRequest(requestEvent);                            // Funktion für I²C-Anfrage
+
   Servo1.attach(SERVO_PIN, ServoPulseMin, ServoPulseMax);  // Servo an Pin Servo_PIN anschließen (wähle den entsprechenden Pin)
   ServoAttached = true;
   Servo1.write(ServoStartPosition);  // ServoAnfang
@@ -142,54 +140,46 @@ void loop() {
         if (Wert >= ServoAnfang && Wert <= ServoEnde) {
           ServoZielPos = Wert;
         }
-        // I2C_Empfang = false;
         break;
       case 0b00000001:  // Gehe zum Anfang
         ServoZielPos = ServoAnfang;
-        // I2C_Empfang = false;
         break;
       case 0b00000010:  // Gehe zum Ende
         ServoZielPos = ServoEnde;
-        // I2C_Empfang = false;
         break;
       case 0b00000100:  // Setze Speed
         if (Wert >= SERVO_SPEED_MIN && Wert <= SERVO_SPEED_MAX) {
           ServoSpeed = Wert;
         }
-        // I2C_Empfang = false;
         break;
       case 0b00000111:  // LED blinken an/aus
         blinkeLED = (Wert == 1);
-        // I2C_Empfang = false;
         break;
       case 0b00001001:  // Speicher Servo Puls Min
         if (Wert >= SERVO_PULSE_MIN && Wert <= SERVO_PULSE_MAX) {
           ServoPulseMin = Wert;
-          eeprom_write_word((uint16_t*)0x05, ServoPulseMin);       // Speichere die Übermittelte Pulsweite Min ins EEPROM
-          Servo1.detach();                                         // Trenne den Servo vom Pin
-          // delay(50);                                               // Warten, damit der Servo Zeit hat, sich zu lösen
+          eeprom_write_word((uint16_t*)0x05, ServoPulseMin);  // Speichere die Übermittelte Pulsweite Min ins EEPROM
+          Servo1.detach();                                    // Trenne den Servo vom Pin
+          //delay(50);                                             // Warten, damit der Servo Zeit hat, sich zu lösen
           Servo1.attach(SERVO_PIN, ServoPulseMin, ServoPulseMax);  // Setze den neuen PulseMin für den Servo
           Servo1.write(ServoPosition);                             // Setze die aktuelle Position auf die neue Pulsweite
         }
-       // I2C_Empfang = false;
         break;
       case 0b00001010:  // Speicher Servo Puls Max
         if (Wert >= SERVO_PULSE_MIN && Wert <= SERVO_PULSE_MAX) {
           ServoPulseMax = Wert;
-          eeprom_write_word((uint16_t*)0x07, ServoPulseMax);       // Speichere die Übermittelte Pulsweite Max ins EEPROM
-          Servo1.detach();                                         // Trenne den Servo vom Pin
-          // delay(50);                                               // Warten, damit der Servo Zeit hat, sich zu lösen
+          eeprom_write_word((uint16_t*)0x07, ServoPulseMax);  // Speichere die Übermittelte Pulsweite Max ins EEPROM
+          Servo1.detach();                                    // Trenne den Servo vom Pin
+          //delay(50);                                               // Warten, damit der Servo Zeit hat, sich zu lösen
           Servo1.attach(SERVO_PIN, ServoPulseMin, ServoPulseMax);  // Setze den neuen PulseMin für den Servo
           Servo1.write(ServoPosition);                             // Setze die aktuelle Position auf die neue Pulsweite
         }
-       // I2C_Empfang = false;
         break;
       case 0b00001011:  // Speicher ServoStartPosition
         if (Wert >= ServoAnfang && Wert <= ServoEnde) {
           ServoStartPosition = Wert;
           eeprom_write_byte((uint8_t*)0x00, Wert);  // Speichere die Übermittelte Position ins EEPROM
         }
-      //  I2C_Empfang = false;
         break;
       case 0b00001100:  // Speicher Anfang
         if (Wert >= SERVO_ANFANG_MIN && Wert <= SERVO_ANFANG_MAX) {
@@ -197,7 +187,6 @@ void loop() {
           ServoAnfang = Wert;
           eeprom_write_byte((uint8_t*)0x01, Wert);  // Speichere die Übermittelte Position ins EEPROM
         }
-       // I2C_Empfang = false;
         break;
       case 0b00001101:  // Speicher Ende
         if (Wert >= SERVO_ENDE_MIN && Wert <= SERVO_ENDE_MAX) {
@@ -205,14 +194,12 @@ void loop() {
           ServoEnde = Wert;
           eeprom_write_byte((uint8_t*)0x02, Wert);  // Speichere die Übermittelte Position ins EEPROM
         }
-       // I2C_Empfang = false;
         break;
       case 0b00001110:  // Speicher Geschwindigkeit
         if (Wert >= SERVO_SPEED_MIN && Wert <= SERVO_SPEED_MAX) {
           ServoSpeed = Wert;                        // Gültigen Wert übernehmen
           eeprom_write_byte((uint8_t*)0x03, Wert);  // Speichere den Standardwert ins EEPROM
         }
-       // I2C_Empfang = false;
         break;
       case 0b00001111:  // Neue I²C-Adresse
         if (Wert >= I2C_ADRESSE_MIN && Wert <= I2C_ADRESSE_MAX) {
@@ -222,11 +209,9 @@ void loop() {
           delay(100);
           Wire.begin(I2CAdresse);  // Beginne I²C mit der neuen Adresse
         }
-       // I2C_Empfang = false;
         break;
     }
-        I2C_Empfang = false;
-
+    I2C_Empfang = false;
   }
 
   if (ServoZielPos != ServoPosition) {
@@ -289,7 +274,7 @@ void receiveEvent(int Anzahl) {
   Wert = 0;
   //detachNachBewegung = false;  // Reset des Flags für jeden neuen Befehl
 
-  // Erstes Byte  = XXXX BBBB (BBBB = Befehle | XXXX ist für Optionale Flags)
+  // Erstes Byte  = FXXX BBBB (BBBB = Befehle | F für Flags | XXX ist für Optionale Flags)
   // Zweites Byte = Wert (Position, Speed oder neue I²C Adresse)
   // Drittes Byte = Zweites Byte wen Wert > 256 (ms Puls Wert)
 
@@ -305,7 +290,7 @@ void receiveEvent(int Anzahl) {
     } else if (Anzahl == 3) {
       i2cRead[1] = Wire.read();
       i2cRead[2] = Wire.read();
-            Wert = word(i2cRead[1], i2cRead[2]);
+      Wert = word(i2cRead[1], i2cRead[2]);
       //Wert = ((uint16_t)i2cRead[1] << 8) | i2cRead[2];
     } else if (Anzahl > 3) {
       // Mehr als erwartet -> alles lesen, aber als ungültig behandeln
@@ -313,6 +298,30 @@ void receiveEvent(int Anzahl) {
       while (Wire.available()) Wire.read();
     }
   }
+}
+
+// =====================================
+//  I²C Request Funktion
+// =====================================
+
+void requestEvent() {
+  // Werte in ein Byte-Array schreiben
+  uint8_t antwort[11];
+  antwort[0] = I2CAdresse;        // Adresse
+  antwort[1] = 0x02;              // Modulkennung (0x02 = Attiny 412 I2C Servo Controler)
+
+  antwort[2] = ServoPosition;
+  antwort[3] = ServoStartPosition;
+  antwort[4] = ServoAnfang;
+  antwort[5] = ServoEnde;
+  antwort[6] = ServoSpeed;
+
+  antwort[7] = highByte(ServoPulseMin);
+  antwort[8] = lowByte(ServoPulseMin);
+  antwort[9] = highByte(ServoPulseMax);
+  antwort[10] = lowByte(ServoPulseMax);
+
+  Wire.write(antwort, sizeof(antwort));
 }
 
 // =====================================
