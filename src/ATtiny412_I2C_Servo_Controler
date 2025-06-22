@@ -27,7 +27,9 @@
 //
 // 🔍 Constrain in Switch Case Block benutzen
 //
-// 🔍 Prüfen das ServoAnfang <= ServoEnde bleibt
+// ✅ Prüfen das ServoAnfang <= ServoEnde bleibt
+//
+// 🔍 EEPROM - Lesen schreiben durch Checksum validieren
 //
 
 // I²C
@@ -36,7 +38,7 @@
 #define I2C_ADRESSE_MIN 0x03  // Kleinste gültige I2C-Adresse
 #define I2C_ADRESSE_MAX 0x77  // Größte gültige I2C-Adresse
 #define I2C_BUFFER_SIZE 2     // Maximale anzahl der übertragenen Bytes als Buffergröße
-uint8_t I2CAdresse = 8;       // Default I2C-Adresse
+//uint8_t I2CAdresse = 8;       // Default I2C-Adresse
 uint8_t i2cRead[I2C_BUFFER_SIZE];
 
 
@@ -55,15 +57,21 @@ uint8_t i2cRead[I2C_BUFFER_SIZE];
 
 #define SERVO_PIN 1
 Servo Servo1;  // create servo object to control a servo
-uint8_t ServoAnfang = SERVO_ANFANG_MIN;
-uint8_t ServoEnde = SERVO_ENDE_MAX;
-uint8_t ServoSpeed = SERVO_SPEED_MIN;
-uint16_t ServoPulseMin = SERVO_PULSE_MIN;
-uint16_t ServoPulseMax = SERVO_PULSE_MAX;
 
-uint8_t ServoStartPosition = 90;
-uint8_t ServoPosition = ServoStartPosition;
-uint8_t ServoZielPos = ServoStartPosition;
+struct ServoConfig {
+  uint8_t start = 90;                   // ServoStartPosition  (EEPROM: 0x00)
+  uint8_t anfang = SERVO_ANFANG_MIN;    // ServoAnfang         (EEPROM: 0x01)
+  uint8_t ende = SERVO_ENDE_MAX;        // ServoEnde           (EEPROM: 0x02)
+  uint8_t speed = SERVO_SPEED_MIN;      // ServoSpeed          (EEPROM: 0x03)
+  uint8_t i2cadresse = 8;               // I2C-Adresse         (EEPROM: 0x04)
+  uint16_t pulseMin = SERVO_PULSE_MIN;  // PulseMin            (EEPROM: 0x05 + 0x06)
+  uint16_t pulseMax = SERVO_PULSE_MAX;  // PulseMax            (EEPROM: 0x07 + 0x08)
+  uint8_t checksum = 0;                 // Prüfsumme           (EEPROM: 0x09)
+};
+ServoConfig config;
+
+uint8_t ServoPosition = 90;
+uint8_t ServoZielPos = 90;
 unsigned long ServoLetzteBewegung = 0;
 bool detachNachBewegung = false;  // Flag ob Servo nach der Bewegung getrennt werden soll
 bool ServoAttached = false;       // Zustand des Servos - Verbunden = true / Getrennt = false
@@ -71,6 +79,7 @@ bool ServoAttached = false;       // Zustand des Servos - Verbunden = true / Get
 // Allgemein
 // ---------------------------------------
 #include <avr/eeprom.h>
+#define MODUL_ID_SERVO 0x02                 // Modulkennung (0x02 = Attiny 412 I2C Servo Controler)
 #define Toggle_Led (VPORTA.OUT ^= PIN3_bm)  // LED Wechsel um Empfang von Daten zu visualisieren
 volatile uint8_t Befehl = 0;                // Zu verarbeitender Befehl
 volatile uint16_t Wert = 0;                 // Wert für den Befehl (z. B. Position, Geschwindigkeit, I²C Adresse)
@@ -83,26 +92,24 @@ bool blinkeLED = false;                     // Flag für LED Blinken
 // =====================================
 void setup() {
   VPORTA.DIR |= PIN3_bm;  // LED PIN als Ausgang
-    // VPORTA.OUT &= ~PIN3_bm;  // LED aus
-    //VPORTA.OUT |= PIN3_bm;  // LED an
-    //Toggle_Led;
 
-  ServoStartPosition = readEEPROMByte((uint8_t*)0x00, SERVO_ANFANG_MIN, SERVO_ENDE_MAX, ServoStartPosition);  // ServoStartPosition aus dem EEPROM lesen
-  ServoAnfang = readEEPROMByte((uint8_t*)0x01, SERVO_ANFANG_MIN, SERVO_ANFANG_MAX, SERVO_ANFANG_MIN);         // ServoAnfang aus dem EEPROM lesen
-  ServoEnde = readEEPROMByte((uint8_t*)0x02, SERVO_ENDE_MIN, SERVO_ENDE_MAX, SERVO_ENDE_MAX);                 // ServoEnde aus dem EEPROM lesen
-  ServoSpeed = readEEPROMByte((uint8_t*)0x03, SERVO_SPEED_MIN, SERVO_SPEED_MAX, SERVO_SPEED_MIN);             // ServoSpeed aus dem EEPROM lesen
-  I2CAdresse = readEEPROMByte((uint8_t*)0x04, I2C_ADRESSE_MIN, I2C_ADRESSE_MAX, I2CAdresse);                  // I2CAdresse aus dem EEPROM lesen
+  config.start = readEEPROMByte((uint8_t*)0x00, SERVO_ANFANG_MIN, SERVO_ENDE_MAX, config.start);            // ServoStartPosition aus dem EEPROM lesen
+  config.anfang = readEEPROMByte((uint8_t*)0x01, SERVO_ANFANG_MIN, SERVO_ANFANG_MAX, config.anfang);        // ServoAnfang aus dem EEPROM lesen
+  config.ende = readEEPROMByte((uint8_t*)0x02, SERVO_ENDE_MIN, SERVO_ENDE_MAX, config.ende);                // ServoEnde aus dem EEPROM lesen
+  config.speed = readEEPROMByte((uint8_t*)0x03, SERVO_SPEED_MIN, SERVO_SPEED_MAX, config.speed);            // ServoSpeed aus dem EEPROM lesen
+  config.i2cadresse = readEEPROMByte((uint8_t*)0x04, I2C_ADRESSE_MIN, I2C_ADRESSE_MAX, config.i2cadresse);  // I2CAdresse aus dem EEPROM lesen
+  config.pulseMin = readEEPROMWord((uint16_t*)0x05, SERVO_PULSE_MIN, SERVO_PULSE_MAX, config.pulseMin);     // ServoPulseMin aus dem EEPROM lesen
+  config.pulseMax = readEEPROMWord((uint16_t*)0x07, SERVO_PULSE_MIN, SERVO_PULSE_MAX, config.pulseMax);     // ServoPulseMax aus dem EEPROM lesen
 
-  ServoPulseMin = readEEPROMWord((uint16_t*)0x05, SERVO_PULSE_MIN, SERVO_PULSE_MAX, SERVO_PULSE_MIN);  // ServoPulseMin aus dem EEPROM lesen
-  ServoPulseMax = readEEPROMWord((uint16_t*)0x07, SERVO_PULSE_MIN, SERVO_PULSE_MAX, SERVO_PULSE_MAX);  // ServoPulseMax aus dem EEPROM lesen
+  Wire.begin(config.i2cadresse);  // Beginne I2C als Slave mit Adresse 8
+  Wire.onReceive(receiveEvent);   // Callback-Funktion bei Empfang von Daten
+  Wire.onRequest(requestEvent);   // Funktion für I²C-Anfrage
 
-  Wire.begin(I2CAdresse);                                  // Beginne I2C als Slave mit Adresse 8
-  Wire.onReceive(receiveEvent);                            // Callback-Funktion bei Empfang von Daten
-  Wire.onRequest(requestEvent);                            // Funktion für I²C-Anfrage
-
-  Servo1.attach(SERVO_PIN, ServoPulseMin, ServoPulseMax);  // Servo an Pin Servo_PIN anschließen (wähle den entsprechenden Pin)
+  Servo1.attach(SERVO_PIN, config.pulseMin, config.pulseMax);  // Servo an Pin Servo_PIN anschließen (wähle den entsprechenden Pin)
   ServoAttached = true;
-  Servo1.write(ServoStartPosition);  // ServoAnfang
+  Servo1.write(config.start);  // ServoAnfang
+  ServoPosition = config.start;
+  ServoZielPos = config.start;
   delay(100);
 }
 
@@ -116,6 +123,7 @@ void loop() {
   // Gehe zum Anfang          XXXX 0001
   // Gehe zum Ende            XXXX 0010
   // Setze Speed              XXXX 0100
+  // Frage Werte ab           XXXX 0110 (Befehl 0110 wird an der Zentrale zum Abfragen - Wire.requestFrom verwenden)
   // Blink LED                XXXX 0111
 
   // Speicher Servo Puls Min  XXXX 1001
@@ -130,26 +138,25 @@ void loop() {
 
 
   if (I2C_Empfang) {                                      // Verarbeitung des Befehls
-                                                          //    blinkeLED = false;                                    // LED Blinken ausschalten
     detachNachBewegung = false;                           // Reset des Flags für jeden neuen Befehl
     detachNachBewegung = (i2cRead[0] & 0b10000000) != 0;  // Prüfe auf gesetztes Detach-Bit (Bit 7)
     Befehl = Befehl & 0b00001111;                         // Befehle extrahieren - Untere 4 Bits
 
     switch (Befehl) {
       case 0b00000000:  // Gehe zu Position
-        if (Wert >= ServoAnfang && Wert <= ServoEnde) {
+        if (Wert >= config.anfang && Wert <= config.ende) {
           ServoZielPos = Wert;
         }
         break;
       case 0b00000001:  // Gehe zum Anfang
-        ServoZielPos = ServoAnfang;
+        ServoZielPos = config.anfang;
         break;
       case 0b00000010:  // Gehe zum Ende
-        ServoZielPos = ServoEnde;
+        ServoZielPos = config.ende;
         break;
       case 0b00000100:  // Setze Speed
         if (Wert >= SERVO_SPEED_MIN && Wert <= SERVO_SPEED_MAX) {
-          ServoSpeed = Wert;
+          config.speed = Wert;
         }
         break;
       case 0b00000111:  // LED blinken an/aus
@@ -157,57 +164,57 @@ void loop() {
         break;
       case 0b00001001:  // Speicher Servo Puls Min
         if (Wert >= SERVO_PULSE_MIN && Wert <= SERVO_PULSE_MAX) {
-          ServoPulseMin = Wert;
-          eeprom_write_word((uint16_t*)0x05, ServoPulseMin);  // Speichere die Übermittelte Pulsweite Min ins EEPROM
-          Servo1.detach();                                    // Trenne den Servo vom Pin
-          //delay(50);                                             // Warten, damit der Servo Zeit hat, sich zu lösen
-          Servo1.attach(SERVO_PIN, ServoPulseMin, ServoPulseMax);  // Setze den neuen PulseMin für den Servo
-          Servo1.write(ServoPosition);                             // Setze die aktuelle Position auf die neue Pulsweite
+          config.pulseMin = Wert;
+          eeprom_write_word((uint16_t*)0x05, config.pulseMin);  // Speichere die Übermittelte Pulsweite Min ins EEPROM
+          Servo1.detach();                                      // Trenne den Servo vom Pin
+          //delay(50);                                                  // Warten, damit der Servo Zeit hat, sich zu lösen
+          Servo1.attach(SERVO_PIN, config.pulseMin, config.pulseMax);  // Setze den neuen PulseMin für den Servo
+          Servo1.write(ServoPosition);                                 // Setze die aktuelle Position auf die neue Pulsweite
         }
         break;
       case 0b00001010:  // Speicher Servo Puls Max
         if (Wert >= SERVO_PULSE_MIN && Wert <= SERVO_PULSE_MAX) {
-          ServoPulseMax = Wert;
-          eeprom_write_word((uint16_t*)0x07, ServoPulseMax);  // Speichere die Übermittelte Pulsweite Max ins EEPROM
-          Servo1.detach();                                    // Trenne den Servo vom Pin
-          //delay(50);                                               // Warten, damit der Servo Zeit hat, sich zu lösen
-          Servo1.attach(SERVO_PIN, ServoPulseMin, ServoPulseMax);  // Setze den neuen PulseMin für den Servo
-          Servo1.write(ServoPosition);                             // Setze die aktuelle Position auf die neue Pulsweite
+          config.pulseMax = Wert;
+          eeprom_write_word((uint16_t*)0x07, config.pulseMax);  // Speichere die Übermittelte Pulsweite Max ins EEPROM
+          Servo1.detach();                                      // Trenne den Servo vom Pin
+          //delay(50);                                                  // Warten, damit der Servo Zeit hat, sich zu lösen
+          Servo1.attach(SERVO_PIN, config.pulseMin, config.pulseMax);  // Setze den neuen PulseMin für den Servo
+          Servo1.write(ServoPosition);                                 // Setze die aktuelle Position auf die neue Pulsweite
         }
         break;
       case 0b00001011:  // Speicher ServoStartPosition
-        if (Wert >= ServoAnfang && Wert <= ServoEnde) {
-          ServoStartPosition = Wert;
-          eeprom_write_byte((uint8_t*)0x00, Wert);  // Speichere die Übermittelte Position ins EEPROM
+        if (Wert >= config.anfang && Wert <= config.ende) {
+          config.start = Wert;
+          eeprom_write_byte((uint8_t*)0x00, config.start);  // Speichere die Übermittelte Position ins EEPROM
         }
         break;
       case 0b00001100:  // Speicher Anfang
-        if (Wert >= SERVO_ANFANG_MIN && Wert <= SERVO_ANFANG_MAX) {
+        if (Wert >= SERVO_ANFANG_MIN && Wert <= SERVO_ANFANG_MAX && Wert <= config.ende) {
           ServoZielPos = Wert;
-          ServoAnfang = Wert;
-          eeprom_write_byte((uint8_t*)0x01, Wert);  // Speichere die Übermittelte Position ins EEPROM
+          config.anfang = Wert;
+          eeprom_write_byte((uint8_t*)0x01, config.anfang);  // Speichere die Übermittelte Position ins EEPROM
         }
         break;
       case 0b00001101:  // Speicher Ende
-        if (Wert >= SERVO_ENDE_MIN && Wert <= SERVO_ENDE_MAX) {
+        if (Wert >= SERVO_ENDE_MIN && Wert <= SERVO_ENDE_MAX && Wert >= config.anfang) {
           ServoZielPos = Wert;
-          ServoEnde = Wert;
-          eeprom_write_byte((uint8_t*)0x02, Wert);  // Speichere die Übermittelte Position ins EEPROM
+          config.ende = Wert;
+          eeprom_write_byte((uint8_t*)0x02, config.ende);  // Speichere die Übermittelte Position ins EEPROM
         }
         break;
       case 0b00001110:  // Speicher Geschwindigkeit
         if (Wert >= SERVO_SPEED_MIN && Wert <= SERVO_SPEED_MAX) {
-          ServoSpeed = Wert;                        // Gültigen Wert übernehmen
-          eeprom_write_byte((uint8_t*)0x03, Wert);  // Speichere den Standardwert ins EEPROM
+          config.speed = Wert;                              // Gültigen Wert übernehmen
+          eeprom_write_byte((uint8_t*)0x03, config.speed);  // Speichere den Standardwert ins EEPROM
         }
         break;
       case 0b00001111:  // Neue I²C-Adresse
         if (Wert >= I2C_ADRESSE_MIN && Wert <= I2C_ADRESSE_MAX) {
-          I2CAdresse = Wert;                              // Gültige Adresse übernehmen
-          eeprom_write_byte((uint8_t*)0x04, I2CAdresse);  // Speichere die Standardadresse ins EEPROM
-          Wire.end();                                     // Beende I²C, bevor du es neu mit der neuen Adresse startest
+          config.i2cadresse = Wert;                              // Gültige Adresse übernehmen
+          eeprom_write_byte((uint8_t*)0x04, config.i2cadresse);  // Speichere die Standardadresse ins EEPROM
+          Wire.end();                                            // Beende I²C, bevor du es neu mit der neuen Adresse startest
           delay(100);
-          Wire.begin(I2CAdresse);  // Beginne I²C mit der neuen Adresse
+          Wire.begin(config.i2cadresse);  // Beginne I²C mit der neuen Adresse
         }
         break;
     }
@@ -216,16 +223,16 @@ void loop() {
 
   if (ServoZielPos != ServoPosition) {
     if (!ServoAttached) {  // Wenn Servo nicht Verbunden ist wieder Verbinden.
-      Servo1.attach(SERVO_PIN, ServoPulseMin, ServoPulseMax);
+      Servo1.attach(SERVO_PIN, config.pulseMin, config.pulseMax);
       ServoAttached = true;
     }
 
-    if (ServoSpeed == 0) {  // Wenn ServoSpeed 0 ist, springe sofort zur Zielposition
+    if (config.speed == 0) {  // Wenn config.speed 0 ist, springe sofort zur Zielposition
       ServoPosition = ServoZielPos;
       Servo1.write(ServoPosition);  // Sofortige Position setzen
       delay(100);                   // Detach Verzögern um 100ms damit der Servo die Position verarbeiten kann
-    } else {                        // Bei ServoSpeed > 0, gehe schrittweise in Richtung Zielposition
-      if ((millis() - ServoLetzteBewegung) >= ServoSpeed || ServoLetzteBewegung > millis()) {
+    } else {                        // Bei config.speed > 0, gehe schrittweise in Richtung Zielposition
+      if ((millis() - ServoLetzteBewegung) >= config.speed || ServoLetzteBewegung > millis()) {
         if (ServoZielPos > ServoPosition) {
           ServoPosition++;  // Einen Schritt nach vorne
         } else {
@@ -239,7 +246,7 @@ void loop() {
 
   if (ServoZielPos == ServoPosition) {            // Wen Bewegung erreicht prüfen ob Servo getrennt oder Verbunden werden muss
     if (!ServoAttached && !detachNachBewegung) {  // Wen Servo deaktiviert ist aber detachNachBewegung false ist den Servo erneut Verbinden
-      Servo1.attach(SERVO_PIN, ServoPulseMin, ServoPulseMax);
+      Servo1.attach(SERVO_PIN, config.pulseMin, config.pulseMax);
       ServoAttached = true;
       Servo1.write(ServoPosition);
     }
@@ -306,20 +313,23 @@ void receiveEvent(int Anzahl) {
 
 void requestEvent() {
   // Werte in ein Byte-Array schreiben
-  uint8_t antwort[11];
-  antwort[0] = I2CAdresse;        // Adresse
-  antwort[1] = 0x02;              // Modulkennung (0x02 = Attiny 412 I2C Servo Controler)
+  uint8_t antwort[12];
+  antwort[0] = config.i2cadresse;  // Adresse
+  antwort[1] = MODUL_ID_SERVO;     // Modulkennung (0x02 = Attiny 412 I2C Servo Controler)
 
   antwort[2] = ServoPosition;
-  antwort[3] = ServoStartPosition;
-  antwort[4] = ServoAnfang;
-  antwort[5] = ServoEnde;
-  antwort[6] = ServoSpeed;
+  antwort[3] = config.start;
+  antwort[4] = config.anfang;
+  antwort[5] = config.ende;
+  antwort[6] = config.speed;
+  antwort[7] = ServoAttached ? 1 : 0;
 
-  antwort[7] = highByte(ServoPulseMin);
-  antwort[8] = lowByte(ServoPulseMin);
-  antwort[9] = highByte(ServoPulseMax);
-  antwort[10] = lowByte(ServoPulseMax);
+  antwort[8] = highByte(config.pulseMin);
+  antwort[9] = lowByte(config.pulseMin);
+  antwort[10] = highByte(config.pulseMax);
+  antwort[11] = lowByte(config.pulseMax);
+
+
 
   Wire.write(antwort, sizeof(antwort));
 }
