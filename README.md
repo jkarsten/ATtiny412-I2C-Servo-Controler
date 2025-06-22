@@ -19,6 +19,8 @@ A minimal I²C servo controller based on the ATtiny412. Supports configurable po
 - LED als Statusanzeige
 - Angepasste Servo Library um Speicher zu sparren (Nur attach / detach / write mit einem Servo möglich)
 - Kompakte Umsetzung für ATtiny412
+- Validierung der gespeicherten EEPROM-Werte mittels Prüfsumme (Checksum)
+  - Bei ungültigen Werten: LED atmet als Fehleranzeige
 
 ---
 
@@ -32,12 +34,14 @@ A minimal I²C servo controller based on the ATtiny412. Supports configurable po
   Wen aktiviert blinkt die LED. Dies erleichtert das auffinden eines Moduls.
 - [x] **Werte per I²C auslesbar machen**  
   Ermögliche das Auslesen der gespeicherten Werte (z. B. Start-, Endposition, Pulsweiten, etc.) über I²C für eine benutzerfreundliche Kommunikation.
-- [ ] **Input-Werte validieren (constrain)**  
+- [X] **Input-Werte validieren (constrain)**  
   Setze eine Validierung ein, die sicherstellt, dass alle Werte (z. B. Positions-, Geschwindigkeits- und Pulsweitenwerte) innerhalb eines gültigen Bereichs liegen. Eine `constrain()`-Funktion könnte hier helfen.
-- [ ] **Anfang ≤ Ende erzwingen**  
+- [X] **Anfang ≤ Ende erzwingen**  
   Stelle sicher, dass der Startwert der Position immer kleiner oder gleich dem Endwert ist, um inkonsistente Positionen zu vermeiden.
-- [ ] **LED Blinken an / aus**  
+- [X] **LED Blinken an / aus**  
   Um einen Arduino mit der Adresse zu finden die LED Blinken lassen.
+- [X] **EEPROM-Datenintegrität per Checksumme prüfen**
+  Prüfe alle gelesenen Werte auf Gültigkeit und verifiziere die Konsistenz per Checksumme.
 
 ---
 
@@ -109,7 +113,8 @@ Das höchste Bit im ersten Byte (`Bit 7 = 1`) bewirkt, dass der Servo nach der B
 | Gehe zum Anfang      | `0001`      | Setzt auf gespeicherten Anfang         |
 | Gehe zum Ende        | `0010`      | Setzt auf gespeichertes Ende           |
 | Setze Speed          | `0100`      | Geschwindigkeit (0–100 ms Schritte)    |
-| Blinken              | `0111`      | LED Blinken zum Auffinden eines Moduls |
+| Werte abfragen       | `0110`      | Sendet aktuelle Werte als Antwort      |
+| LED Blinken          | `0111`      | LED Blinken zum Auffinden eines Moduls |
 |                      |             |                                        |
 | Puls Min speichern   | `1001`      | Pulsweite MIN (in µs, 2 Byte)          |
 | Puls Max speichern   | `1010`      | Pulsweite MAX (in µs, 2 Byte)          |
@@ -117,6 +122,34 @@ Das höchste Bit im ersten Byte (`Bit 7 = 1`) bewirkt, dass der Servo nach der B
 | Ende speichern       | `1101`      | Neue Endposition (0–180)               |
 | Speed speichern      | `1110`      | Standard-Geschwindigkeit               |
 | I²C Adresse ändern   | `1111`      | Neue Adresse speichern                 |
+
+---
+
+### 🔍 Werte abfragen
+
+Die aktuellen Konfigurations- und Statuswerte des Moduls (z. B. Position, Startwert, Pulsweiten etc.) können über einen I²C-Request gelesen werden.
+
+Dabei muss **kein spezieller Befehl vorher gesendet werden**. Der I²C-Master stellt einfach eine Leseanfrage an das Modul:
+
+```cpp
+Wire.requestFrom(Adresse, 12);
+```
+Das Modul antwortet automatisch mit einem 12-Byte-Datenpaket:
+
+| Byte  |	Inhalt             |	Beschreibung                   |
+|-------|--------------------|---------------------------------|
+| 0     |	I²C-Adresse        |	Eigene Adresse zur Überprüfung |
+| 1     |	Modul-ID           |	Immer 0x02 für Servo-Modul     |
+| 2     |	Aktuelle Position  | 	Derzeitige Servoposition       |
+| 3     |	Startposition      |	Startwert aus dem EEPROM       |
+| 4     |	Anfang             |	Gültiger Bereich: Start        |
+| 5     |	Ende               |	Gültiger Bereich: Ende         |
+| 6     |	Geschwindigkeit    |	Bewegungsverzögerung (0–100 ms)|
+| 7     |	Servo aktiv        |	1 = attached, 0 = detached     |
+| 8–9   |	Pulsweite MIN      |	16-Bit Wert: highByte, lowByte |
+| 10–11 |	Pulsweite MAX      |	16-Bit Wert: highByte, lowByte |
+
+Hinweis: Die Reihenfolge der Bytes ist festgelegt und sollte beim Parsen im Master-Code berücksichtigt werden.
 
 ---
 
@@ -131,7 +164,7 @@ Das höchste Bit im ersten Byte (`Bit 7 = 1`) bewirkt, dass der Servo nach der B
 | `0x04`  | I²C-Adresse            |
 | `0x05`  | Pulsweite MIN (Word)   |
 | `0x07`  | Pulsweite MAX (Word)   |
-
+| `0x09`  | Prüfsumme (Checksum)   |
 ---
 
 ### ⚠️ Hinweise
@@ -139,6 +172,8 @@ Das höchste Bit im ersten Byte (`Bit 7 = 1`) bewirkt, dass der Servo nach der B
 - Die Pulsweiten müssen im Bereich **500 – 2500 µs** liegen.
 - `ServoSpeed = 0` bewegt sofort zur Zielposition.
 - Neue I²C Adressen werden sofort übernommen und im EEPROM gespeichert.
+- Bei ungültigen oder fehlerhaften EEPROM-Werten wird die LED zur Fehlersignalisierung langsam ein- und ausgeblendet ("atmen").
+
 
 ---
 
