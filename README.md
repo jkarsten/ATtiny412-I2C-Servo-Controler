@@ -71,9 +71,12 @@ A minimal I²C servo controller based on the ATtiny412. Supports configurable po
 
 ---
 
-## 🛠️ Kompilieren & Flashen
+## 🛠️ Kompilieren & Flashen (BOD, Takt, Fuse)
 
+Für den stabilen Betrieb mit 20 MHz und EEPROM-Erhalt:
 - **Board-Bibliothek:** [megaTinyCore](https://github.com/SpenceKonde/megaTinyCore)
+- **BOD Mode when Active / Sleeping:** Enabled / Enabled
+- **BOD Voltage Level:** 4.2 V
 - **Board:** ATtiny412/402/212/202
 - **Chip:** ATtiny412
 - **Clock:** 20 MHz internal
@@ -82,13 +85,23 @@ A minimal I²C servo controller based on the ATtiny412. Supports configurable po
 - **Wire Library mode:** Master or Slave
 - **Programmer:** SerialUPDI - SLOW: 57600 baud
 
+Diese Einstellungen müssen über „**Burn Bootloader**“ gesetzt werden!
+
+---
+
+## 🔄 EEPROM Default Initialisierung
+
+Zum Zurücksetzen oder Erstprogrammieren des EEPROMs kann das separate Tool verwendet werden:
+
+🔗 https://github.com/jkarsten/ATtiny412-I2C-Servo-Controler-EEPROM-DEFAULT
+
 ---
 
 ### 🧰 Speichernutzung
 
-- **Programmspeicher**: Der Sketch verwendet **3850 Bytes** (93%) des verfügbaren Programmspeichers. Der maximale Speicher beträgt **4096 Bytes**.
+- **Programmspeicher**: Der Sketch verwendet **3822 Bytes** (93%) des verfügbaren Programmspeichers. Der maximale Speicher beträgt **4096 Bytes**.
   
-- **Dynamischer Speicher (RAM)**: Die globalen Variablen nutzen **193 Bytes** (75%) des verfügbaren dynamischen Speichers, wodurch noch **63 Bytes** für lokale Variablen übrig bleiben. Der maximale dynamische Speicher beträgt **256 Bytes**.
+- **Dynamischer Speicher (RAM)**: Die globalen Variablen nutzen **142 Bytes** (55%) des verfügbaren dynamischen Speichers, wodurch noch **114 Bytes** für lokale Variablen übrig bleiben. Der maximale dynamische Speicher beträgt **256 Bytes**.
 
 Dies zeigt, dass der Speicher des ATtiny412 weitgehend ausgelastet ist, insbesondere der dynamische Speicher (RAM). Weitere Funktionen sind deshalb schwer umzusetzen. Optimierungen sind möglich.
 
@@ -113,7 +126,7 @@ Das höchste Bit im ersten Byte (`Bit 7 = 1`) bewirkt, dass der Servo nach der B
 | Gehe zum Anfang      | `0001`      | Setzt auf gespeicherten Anfang         |
 | Gehe zum Ende        | `0010`      | Setzt auf gespeichertes Ende           |
 | Setze Speed          | `0100`      | Geschwindigkeit (0–100 ms Schritte)    |
-| Werte abfragen       | `0110`      | Sendet aktuelle Werte als Antwort      |
+| Werte abfragen       | `0110`      | Sendet aktuelle Werte als Antwort (Siehe - Werte abfragen     |
 | LED Blinken          | `0111`      | LED Blinken zum Auffinden eines Moduls |
 |                      |             |                                        |
 | Puls Min speichern   | `1001`      | Pulsweite MIN (in µs, 2 Byte)          |
