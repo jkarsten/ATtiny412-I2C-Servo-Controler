@@ -25,8 +25,6 @@
 //
 // ✅ Rückmeldung der Werte per I²C
 //
-// 🔍 Constrain in Switch Case Block benutzen
-//
 // ✅ Prüfen das ServoAnfang <= ServoEnde bleibt
 //
 // 🔍 EEPROM - Lesen schreiben durch Checksum validieren
