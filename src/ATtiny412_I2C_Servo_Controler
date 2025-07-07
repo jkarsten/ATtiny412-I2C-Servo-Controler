@@ -122,24 +122,12 @@ void setup() {
 
   // Prüfe alle gespeicherten EEPROM-Werte
   if (config.start == 255 || config.anfang == 255 || config.ende == 255 || config.speed == 255 || config.i2cadresse == 255 || config.pulseMin == 0xFFFF || config.pulseMax == 0xFFFF || !verifyChecksum()) {
-    // LED atmen lassen
+    // Schnelles Blinken bei Fehler
     while (true) {
-      for (uint8_t i = 0; i < 255; i++) {
-        for (uint8_t j = 0; j < 10; j++) {
-          VPORTA.OUT |= PIN3_bm;  // LED an
-          delayMicroseconds(i);
-          VPORTA.OUT &= ~PIN3_bm;  // LED aus
-          delayMicroseconds(255 - i);
-        }
-      }
-      for (int i = 255; i >= 0; i--) {
-        for (uint8_t j = 0; j < 10; j++) {
-          VPORTA.OUT |= PIN3_bm;
-          delayMicroseconds(i);
-          VPORTA.OUT &= ~PIN3_bm;
-          delayMicroseconds(255 - i);
-        }
-      }
+      VPORTA.OUT |= PIN3_bm;  // LED an
+      delay(100);
+      VPORTA.OUT &= ~PIN3_bm;  // LED aus
+      delay(100);
     }
   }
 
@@ -209,7 +197,7 @@ void loop() {
           config.pulseMin = Wert;
           eeprom_write_word((uint16_t*)EEPROM_ADDR_PULSE_MIN, config.pulseMin);  // Speichere die Übermittelte Pulsweite Min ins EEPROM
           updateChecksum();
-          Servo1.detach();                                                       // Trenne den Servo vom Pin
+          Servo1.detach();  // Trenne den Servo vom Pin
           //delay(50);                                                           // Warten, damit der Servo Zeit hat, sich zu lösen
           Servo1.attach(SERVO_PIN, config.pulseMin, config.pulseMax);  // Setze den neuen PulseMin für den Servo
           Servo1.write(ServoPosition);                                 // Setze die aktuelle Position auf die neue Pulsweite
@@ -220,7 +208,7 @@ void loop() {
           config.pulseMax = Wert;
           eeprom_write_word((uint16_t*)EEPROM_ADDR_PULSE_MAX, config.pulseMax);  // Speichere die Übermittelte Pulsweite Max ins EEPROM
           updateChecksum();
-          Servo1.detach();                                                       // Trenne den Servo vom Pin
+          Servo1.detach();  // Trenne den Servo vom Pin
           //delay(50);                                                           // Warten, damit der Servo Zeit hat, sich zu lösen
           Servo1.attach(SERVO_PIN, config.pulseMin, config.pulseMax);  // Setze den neuen PulseMin für den Servo
           Servo1.write(ServoPosition);                                 // Setze die aktuelle Position auf die neue Pulsweite
@@ -261,7 +249,7 @@ void loop() {
           config.i2cadresse = Wert;                                                 // Gültige Adresse übernehmen
           eeprom_write_byte((uint8_t*)EEPROM_ADDR_I2C_ADRESSE, config.i2cadresse);  // Speichere die Standardadresse ins EEPROM
           updateChecksum();
-          Wire.end();                                                               // Beende I²C, bevor du es neu mit der neuen Adresse startest
+          Wire.end();  // Beende I²C, bevor du es neu mit der neuen Adresse startest
           delay(100);
           Wire.begin(config.i2cadresse);  // Beginne I²C mit der neuen Adresse
         }
@@ -309,7 +297,7 @@ void loop() {
 
   static unsigned long letzteLEDMillis = 0;
   if (blinkeLED) {
-    if (millis() - letzteLEDMillis >= 300) {  // Blinkintervall 300ms
+    if (millis() - letzteLEDMillis >= 500) {  // Blinkintervall 300ms
       Toggle_Led;
       letzteLEDMillis = millis();
     }
@@ -452,4 +440,16 @@ void updateChecksum() {
 
   eeprom_write_byte((uint8_t*)EEPROM_ADDR_CHECKSUM, checksum);
   config.checksum = checksum;  // Aktualisiere auch im RAM
+  delay(5);
+
+  config.checksum = eeprom_read_byte((uint8_t*)EEPROM_ADDR_CHECKSUM);
+
+  if (!verifyChecksum()) {
+    while (true) {
+      VPORTA.OUT |= PIN3_bm;  // LED an
+      delay(100);
+      VPORTA.OUT &= ~PIN3_bm;  // LED aus
+      delay(100);
+    }
+  }
 }
