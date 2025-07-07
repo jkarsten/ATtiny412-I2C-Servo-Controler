@@ -1,6 +1,7 @@
 // =====================================
 //  ATtiny412 - I²C Servo Controler
 // =====================================
+// https://github.com/jkarsten/ATtiny412-I2C-Servo-Controler
 //
 // BOD Mode when Active /Sleeping:  "Enabled/Enabled"
 // BOD Voltage Level:               "4.2V (20 MHZ or less)"
@@ -78,7 +79,7 @@ struct ServoConfig {
   uint8_t anfang = SERVO_ANFANG_MIN;    // ServoAnfang         (EEPROM: 0x01)
   uint8_t ende = SERVO_ENDE_MAX;        // ServoEnde           (EEPROM: 0x02)
   uint8_t speed = SERVO_SPEED_MIN;      // ServoSpeed          (EEPROM: 0x03)
-  uint8_t i2cadresse = 8;               // I2C-Adresse         (EEPROM: 0x04)
+  uint8_t i2cadresse = 250;             // I2C-Adresse         (EEPROM: 0x04)
   uint16_t pulseMin = SERVO_PULSE_MIN;  // PulseMin            (EEPROM: 0x05 + 0x06)
   uint16_t pulseMax = SERVO_PULSE_MAX;  // PulseMax            (EEPROM: 0x07 + 0x08)
   uint8_t checksum = 0;                 // Prüfsumme           (EEPROM: 0x09)
@@ -116,7 +117,7 @@ void setup() {
   config.pulseMin = readEEPROMWord((uint16_t*)EEPROM_ADDR_PULSE_MIN, SERVO_PULSE_MIN, SERVO_PULSE_MAX);     // ServoPulseMin aus dem EEPROM lesen
   config.pulseMax = readEEPROMWord((uint16_t*)EEPROM_ADDR_PULSE_MAX, SERVO_PULSE_MIN, SERVO_PULSE_MAX);     // ServoPulseMax aus dem EEPROM lesen
 
-  config.checksum = eeprom_read_byte((uint8_t*)EEPROM_ADDR_CHECKSUM);                                       // Checksum aus dem EEPROM lesen
+  config.checksum = eeprom_read_byte((uint8_t*)EEPROM_ADDR_CHECKSUM);  // Checksum aus dem EEPROM lesen
 
 
   // Prüfe alle gespeicherten EEPROM-Werte
@@ -207,6 +208,7 @@ void loop() {
         if (Wert >= SERVO_PULSE_MIN && Wert <= SERVO_PULSE_MAX) {
           config.pulseMin = Wert;
           eeprom_write_word((uint16_t*)EEPROM_ADDR_PULSE_MIN, config.pulseMin);  // Speichere die Übermittelte Pulsweite Min ins EEPROM
+          updateChecksum();
           Servo1.detach();                                                       // Trenne den Servo vom Pin
           //delay(50);                                                           // Warten, damit der Servo Zeit hat, sich zu lösen
           Servo1.attach(SERVO_PIN, config.pulseMin, config.pulseMax);  // Setze den neuen PulseMin für den Servo
@@ -217,6 +219,7 @@ void loop() {
         if (Wert >= SERVO_PULSE_MIN && Wert <= SERVO_PULSE_MAX) {
           config.pulseMax = Wert;
           eeprom_write_word((uint16_t*)EEPROM_ADDR_PULSE_MAX, config.pulseMax);  // Speichere die Übermittelte Pulsweite Max ins EEPROM
+          updateChecksum();
           Servo1.detach();                                                       // Trenne den Servo vom Pin
           //delay(50);                                                           // Warten, damit der Servo Zeit hat, sich zu lösen
           Servo1.attach(SERVO_PIN, config.pulseMin, config.pulseMax);  // Setze den neuen PulseMin für den Servo
@@ -227,6 +230,7 @@ void loop() {
         if (Wert >= config.anfang && Wert <= config.ende) {
           config.start = Wert;
           eeprom_write_byte((uint8_t*)EEPROM_ADDR_START_POSITION, config.start);  // Speichere die Übermittelte Position ins EEPROM
+          updateChecksum();
         }
         break;
       case 0b00001100:  // Speicher Anfang
@@ -234,6 +238,7 @@ void loop() {
           ServoZielPos = Wert;
           config.anfang = Wert;
           eeprom_write_byte((uint8_t*)EEPROM_ADDR_ANFANG, config.anfang);  // Speichere die Übermittelte Position ins EEPROM
+          updateChecksum();
         }
         break;
       case 0b00001101:  // Speicher Ende
@@ -241,18 +246,21 @@ void loop() {
           ServoZielPos = Wert;
           config.ende = Wert;
           eeprom_write_byte((uint8_t*)EEPROM_ADDR_ENDE, config.ende);  // Speichere die Übermittelte Position ins EEPROM
+          updateChecksum();
         }
         break;
       case 0b00001110:  // Speicher Geschwindigkeit
         if (Wert >= SERVO_SPEED_MIN && Wert <= SERVO_SPEED_MAX) {
           config.speed = Wert;                                           // Gültigen Wert übernehmen
           eeprom_write_byte((uint8_t*)EEPROM_ADDR_SPEED, config.speed);  // Speichere den Standardwert ins EEPROM
+          updateChecksum();
         }
         break;
       case 0b00001111:  // Neue I²C-Adresse
         if (Wert >= I2C_ADRESSE_MIN && Wert <= I2C_ADRESSE_MAX) {
           config.i2cadresse = Wert;                                                 // Gültige Adresse übernehmen
           eeprom_write_byte((uint8_t*)EEPROM_ADDR_I2C_ADRESSE, config.i2cadresse);  // Speichere die Standardadresse ins EEPROM
+          updateChecksum();
           Wire.end();                                                               // Beende I²C, bevor du es neu mit der neuen Adresse startest
           delay(100);
           Wire.begin(config.i2cadresse);  // Beginne I²C mit der neuen Adresse
@@ -427,4 +435,21 @@ bool verifyChecksum() {
   sum ^= lowByte(config.pulseMax);
 
   return (sum == config.checksum);
+}
+
+void updateChecksum() {
+  uint8_t checksum = 0;
+  checksum ^= config.start;
+  checksum ^= config.anfang;
+  checksum ^= config.ende;
+  checksum ^= config.speed;
+  checksum ^= config.i2cadresse;
+  checksum ^= highByte(config.pulseMin);
+  checksum ^= lowByte(config.pulseMin);
+  checksum ^= highByte(config.pulseMax);
+  checksum ^= lowByte(config.pulseMax);
+  delay(5);  // Kurze Pause, um sicheren EEPROM-Zyklus zu garantieren
+
+  eeprom_write_byte((uint8_t*)EEPROM_ADDR_CHECKSUM, checksum);
+  config.checksum = checksum;  // Aktualisiere auch im RAM
 }
