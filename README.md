@@ -20,7 +20,7 @@ A minimal I²C servo controller based on the ATtiny412. Supports configurable po
 - Angepasste Servo Library um Speicher zu sparren (Nur attach / detach / write mit einem Servo möglich)
 - Kompakte Umsetzung für ATtiny412
 - Validierung der gespeicherten EEPROM-Werte mittels Prüfsumme (Checksum)
-  - Bei ungültigen Werten: LED atmet als Fehleranzeige
+  - Bei ungültigen Werten: LED blinkt sehr schnell
 
 ---
 
@@ -96,6 +96,24 @@ Zum Zurücksetzen oder Erstprogrammieren des EEPROMs kann das separate Tool verw
 🔗 https://github.com/jkarsten/ATtiny412-I2C-Servo-Controler-EEPROM-DEFAULT
 
 ---
+
+## 🛡️ EEPROM-Datenvalidierung mittels Prüfsumme
+Um die Integrität der im EEPROM gespeicherten Konfigurationsdaten sicherzustellen, wird eine einfache XOR-basierte Prüfsumme verwendet. Diese Checksumme deckt alle konfigurierbaren Werte ab:
+- Startposition
+- Anfangs-/Endposition
+- Bewegungsgeschwindigkeit
+- I²C-Adresse
+- Pulsweite Min/Max (jeweils 2 Byte)
+
+Nach jeder Änderung eines dieser Werte wird automatisch die Checksumme neu berechnet und im EEPROM gespeichert.
+
+Beim Start des Controllers werden alle Werte aus dem EEPROM geladen und gegen die gespeicherte Checksumme geprüft. Stimmen die Werte nicht überein (z. B. durch Bitfehler, Stromausfall o. ä.), gilt die Konfiguration als beschädigt.
+
+In diesem Fall geht der Controller in einen sicheren Fehlerzustand:
+🔴 Die LED beginnt schnell zu blinken und alle weiteren Funktionen werden blockiert. So lässt sich das betroffene Modul leicht erkennen.
+
+---
+
 
 ### 🧰 Speichernutzung
 
