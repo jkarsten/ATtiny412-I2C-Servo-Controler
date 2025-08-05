@@ -78,7 +78,7 @@ Das Hochladen erfolgt in drei Schritten
 2. EEPROM Default Werte schreiben
 3. Sketch hochladen
 
-**🛠️ Arduino Settings**
+###🛠️ Arduino Settings
 
 Für den stabilen Betrieb mit 20 MHz und dem EEPROM-Erhalt:
 - **Board-Bibliothek:** [megaTinyCore](https://github.com/SpenceKonde/megaTinyCore)
@@ -94,13 +94,13 @@ Für den stabilen Betrieb mit 20 MHz und dem EEPROM-Erhalt:
 
 Diese Einstellungen müssen über „**Burn Bootloader**“ gesetzt werden!
 
-**🔄 EEPROM Default Initialisierung**
+###🔄 EEPROM Default Initialisierung
 
 Zum Zurücksetzen oder Erstprogrammieren des EEPROMs kann das separate Tool verwendet werden:
 
 🔗 https://github.com/jkarsten/ATtiny412-I2C-Servo-Controler-EEPROM-DEFAULT
 
-**🛠️ Upload des Sketch**
+###🛠️ Upload des Sketch
 
 Nach dem beschreiben des EEPROMs den Sketch hochladen
 
