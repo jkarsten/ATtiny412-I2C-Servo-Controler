@@ -73,7 +73,14 @@ A minimal I²C servo controller based on the ATtiny412. Supports configurable po
 
 ## 🛠️ Kompilieren & Flashen (BOD, Takt, Fuse)
 
-Für den stabilen Betrieb mit 20 MHz und EEPROM-Erhalt:
+Das Hochladen erfolgt in drei Schritten
+1. Arduino Settings & Bootloader schreiben
+2. EEPROM Default Werte schreiben
+3. Sketch hochladen
+
+### 🛠️ Arduino Settings
+
+Für den stabilen Betrieb mit 20 MHz und dem EEPROM-Erhalt:
 - **Board-Bibliothek:** [megaTinyCore](https://github.com/SpenceKonde/megaTinyCore)
 - **BOD Mode when Active / Sleeping:** Enabled / Enabled
 - **BOD Voltage Level:** 4.2 V
@@ -87,13 +94,15 @@ Für den stabilen Betrieb mit 20 MHz und EEPROM-Erhalt:
 
 Diese Einstellungen müssen über „**Burn Bootloader**“ gesetzt werden!
 
----
-
-## 🔄 EEPROM Default Initialisierung
+### 🔄 EEPROM Default Initialisierung
 
 Zum Zurücksetzen oder Erstprogrammieren des EEPROMs kann das separate Tool verwendet werden:
 
 🔗 https://github.com/jkarsten/ATtiny412-I2C-Servo-Controler-EEPROM-DEFAULT
+
+### 🛠️ Upload des Sketch
+
+Nach dem beschreiben des EEPROMs den Sketch hochladen
 
 ---
 
