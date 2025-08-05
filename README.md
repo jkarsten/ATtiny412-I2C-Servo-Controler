@@ -123,7 +123,6 @@ In diesem Fall geht der Controller in einen sicheren Fehlerzustand:
 
 ---
 
-
 ### 🧰 Speichernutzung
 
 - **Programmspeicher**: Der Sketch verwendet **3822 Bytes** (93%) des verfügbaren Programmspeichers. Der maximale Speicher beträgt **4096 Bytes**.
