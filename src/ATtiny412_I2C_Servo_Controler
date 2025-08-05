@@ -79,7 +79,7 @@ struct ServoConfig {
   uint8_t anfang = SERVO_ANFANG_MIN;    // ServoAnfang         (EEPROM: 0x01)
   uint8_t ende = SERVO_ENDE_MAX;        // ServoEnde           (EEPROM: 0x02)
   uint8_t speed = SERVO_SPEED_MIN;      // ServoSpeed          (EEPROM: 0x03)
-  uint8_t i2cadresse = 250;             // I2C-Adresse         (EEPROM: 0x04)
+  uint8_t i2cadresse = 8;               // I2C-Adresse         (EEPROM: 0x04)
   uint16_t pulseMin = SERVO_PULSE_MIN;  // PulseMin            (EEPROM: 0x05 + 0x06)
   uint16_t pulseMax = SERVO_PULSE_MAX;  // PulseMax            (EEPROM: 0x07 + 0x08)
   uint8_t checksum = 0;                 // Prüfsumme           (EEPROM: 0x09)
@@ -121,7 +121,7 @@ void setup() {
 
 
   // Prüfe alle gespeicherten EEPROM-Werte
-  if (config.start == 255 || config.anfang == 255 || config.ende == 255 || config.speed == 255 || config.i2cadresse == 255 || config.pulseMin == 0xFFFF || config.pulseMax == 0xFFFF || !verifyChecksum()) {
+  if (config.start == 255 || config.anfang == 255 || config.ende == 255 || config.speed == 255 || config.pulseMin == 0xFFFF || config.pulseMax == 0xFFFF || config.i2cadresse == 255  || !verifyChecksum() ) { // 
     // Schnelles Blinken bei Fehler
     while (true) {
       VPORTA.OUT |= PIN3_bm;  // LED an
